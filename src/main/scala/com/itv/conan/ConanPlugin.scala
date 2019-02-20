@@ -44,21 +44,17 @@ object ConanPlugin extends AutoPlugin {
         IO.zip(inputs, zipFile)
         zipFile
       },
-      conanConfig := {
-        conanConfig.??(undefinedKeyError(conanConfig.key)).value
-      },
       lambdaClient := {
-        println("conf is " + conanConfig.value)
-        //      val region = conanConfig.value
+        val region = conanConfig.value.region
         AWSLambdaClientBuilder
           .standard()
           .withCredentials(DefaultAWSCredentialsProviderChain.getInstance)
-          .withRegion("")
+          .withRegion(region)
           .build()
       },
       uploadFunction := {
-        //      val lambdaConfig = conanConfig.value
-        //      import lambdaConfig._
+        val lambdaConfig = conanConfig.value
+        import lambdaConfig._
         val zipFile: java.io.File = (Compile / zipJs).value
         val bytes = Files.readAllBytes(zipFile.toPath)
         val byteBuffer = ByteBuffer.wrap(bytes)
@@ -66,16 +62,16 @@ object ConanPlugin extends AutoPlugin {
         val result = {
           createOrUpdateNewFunction(
             lambdaClient.value,
-            "",
-            "",
-            "",
+            functionName,
+            functionHandler,
+            eventSourceArn,
             byteBuffer,
-            ""
+            lambdaRoleArn
           )
           createOrUpdateEventSourceMapping(
             lambdaClient.value,
-            "",
-            ""
+            functionName,
+            eventSourceArn
           )
         }
 
