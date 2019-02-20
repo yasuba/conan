@@ -1,0 +1,8 @@
+.idea
+.idea_modules
+target
+project/target
+.lib
+.DS_Store
+.history
+sbt
