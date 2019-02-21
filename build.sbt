@@ -2,7 +2,7 @@ lazy val root = (project in file("."))
   .settings(
       organization := "com.itv",
       name := "conan",
-      version := "0.1-SNAPSHOT",
+      version := "0.1",
       scalaVersion := "2.12.8",
       libraryDependencies ++= Dependencies.all,
       sbtPlugin := true,
