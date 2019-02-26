@@ -3,9 +3,10 @@ package com.itv.conan
 import java.nio.ByteBuffer
 import java.util
 
+import com.amazonaws.auth.DefaultAWSCredentialsProviderChain
 import com.amazonaws.services.ec2.model._
-import com.amazonaws.services.lambda.AWSLambda
 import com.amazonaws.services.lambda.model._
+import com.amazonaws.services.lambda.{AWSLambda, AWSLambdaClientBuilder}
 import com.amazonaws.{AmazonWebServiceResult, ResponseMetadata}
 
 import scala.util.{Failure, Success, Try}
@@ -49,10 +50,9 @@ object CreateLambdaFunction {
       case Failure(e) =>
         println(
           s"There was a problem fetching the eventSourceMapping: ${e.getMessage}")
-        lambdaClient.createEventSourceMapping(
-          new CreateEventSourceMappingRequest()
-            .withFunctionName(functionName)
-            .withEventSourceArn(eventSourceArn))
+        createEventSourceMappingResult(lambdaClient,
+                                       functionName,
+                                       eventSourceArn)
 
       case Success(mapping) =>
         val mappings: util.List[EventSourceMappingConfiguration] =
@@ -72,11 +72,10 @@ object CreateLambdaFunction {
       lambdaClient: AWSLambda,
       functionName: String,
       handlerName: String,
-      eventSourceARN: String,
       byteBuffer: ByteBuffer,
       lambdaExecRole: String): AmazonWebServiceResult[ResponseMetadata] =
     maybeLambdaConfig(lambdaClient, functionName) match {
-      case Failure(e) => {
+      case Failure(e) =>
         println(
           s"I couldn't find a function named $functionName, I will try to create one: ${e.getMessage}")
         lambdaClient
@@ -93,15 +92,41 @@ object CreateLambdaFunction {
               .withSecurityGroupIds(
                 new DescribeSecurityGroupsRequest().getGroupIds)
               .withSubnetIds(new DescribeSubnetsRequest().getSubnetIds))
-      }
 
       case Success(_) =>
         lambdaClient
           .updateFunctionCode(
             new UpdateFunctionCodeRequest()
               .withFunctionName(functionName)
-              .withZipFile(byteBuffer))
-          .withRuntime(Runtime.Nodejs810)
-          .withRole(lambdaExecRole)
+              .withZipFile(byteBuffer)
+          )
     }
+
+  def lambdaClientBuilder(region: String): AWSLambda =
+    AWSLambdaClientBuilder
+      .standard()
+      .withCredentials(DefaultAWSCredentialsProviderChain.getInstance)
+      .withRegion(region)
+      .build()
+
+  def createOrUpdateLambdaAndEventSource(lambdaClient: AWSLambda,
+                                         functionName: String,
+                                         functionHandler: String,
+                                         byteBuffer: ByteBuffer,
+                                         lambdaRoleArn: String,
+                                         eventSourceArn: String) = {
+    createOrUpdateNewFunction(
+      lambdaClient,
+      functionName,
+      functionHandler,
+      byteBuffer,
+      lambdaRoleArn
+    )
+
+    createOrUpdateEventSourceMapping(
+      lambdaClient,
+      functionName,
+      eventSourceArn
+    )
+  }
 }
